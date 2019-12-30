@@ -1,32 +1,38 @@
 # Copyright 1999-2019 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=6
+EAPI=7
 
 EGO_PN="github.com/${PN}/${PN}"
-
 if [[ ${PV} == *9999 ]]; then
-	inherit golang-build golang-vcs
+	EGIT_REPO_URI="https://${EGO_PN}"
+	inherit git-r3
 else
 	SRC_URI="https://${EGO_PN}/archive/v${PV}.tar.gz -> ${P}.tar.gz"
 	KEYWORDS="~amd64 ~amd64-linux ~x86-linux"
-	inherit golang-build golang-vcs-snapshot
 fi
 
-DESCRIPTION="command line extension and specification for managing large files with Git"
 HOMEPAGE="https://git-lfs.github.com/"
+DESCRIPTION="command line extension and specification for managing large files with Git"
 
-LICENSE="MIT BSD BSD-2 BSD-4 Apache-2.0"
+LICENSE="Apache-2.0 BSD BSD-2 BSD-4 ISC MIT"
 SLOT="0"
-IUSE="+doc"
+IUSE="doc"
 
-DEPEND="doc? ( app-text/ronn )"
+DEPEND="dev-lang/go
+	doc? ( app-text/ronn )"
 RDEPEND="dev-vcs/git"
 
-S="${WORKDIR}/${P}/src/${EGO_PN}"
+QA_FLAGS_IGNORED="/usr/bin/git-lfs"
+RESTRICT="strip"
 
 src_compile() {
-	golang-build_src_compile
+	set -- go build \
+		-ldflags="-X ${EGO_PN}/config.GitCommit=${GIT_COMMIT}" \
+		-mod vendor -v -work -x \
+		-o git-lfs git-lfs.go
+	echo "$@"
+	"$@" || die
 
 	if use doc; then
 		ronn docs/man/*.ronn || die "man building failed"
@@ -35,5 +41,6 @@ src_compile() {
 
 src_install() {
 	dobin git-lfs
+	dodoc {CHANGELOG,CODE-OF-CONDUCT,CONTRIBUTING,README}.md
 	use doc && doman docs/man/*.1
 }
